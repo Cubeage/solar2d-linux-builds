@@ -35,9 +35,10 @@ guarded(function()
     assert(cryptoVersion:find("OpenSSL 3.", 1, true), "expected system OpenSSL 3")
     assert(openssl.rand_status(), "OpenSSL entropy is not ready")
 
-    local scene = composer.newScene()
-    local rect = display.newRect(scene.view, 40, 80, 30, 30)
-    scene.view:insert(widget.newButton({ label = "Runtime smoke", x = 160, y = 160 }))
+    composer.gotoScene("runtime_scene")
+    local scene = assert(composer.getScene("runtime_scene"))
+    assert(scene.smokeCreated and scene.view, "composer create event did not finish")
+    local rect = assert(scene.smokeRect)
     local frames, transitioned, timed = 0, false, false
     Runtime:addEventListener("enterFrame", function() frames = frames + 1 end)
     transition.to(rect, { time = 100, x = 80, onComplete = function() transitioned = true end })
@@ -54,7 +55,8 @@ guarded(function()
         finish(true, {
             lua = _VERSION, solar2d = system.getInfo("build"), openssl = cryptoVersion,
             binding = bindingVersion, frames = frames, timer = timed,
-            transition = transitioned, documents = true, nativeRandom = true
+            transition = transitioned, documents = true, nativeRandom = true,
+            composer = scene.smokeCreated, widget = true
         })
     end))
 end)()

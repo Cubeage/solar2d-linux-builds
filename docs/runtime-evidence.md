@@ -51,3 +51,10 @@ context appended Resources to the environment after the VM had already opened
 that live table as well. It can be removed when the pinned upstream sets the
 installed Resources path in the live VM and the same extracted-package check
 passes. Builder builds do not apply runtime-specific patches.
+
+The next check, [41062620655](https://github.com/Cubeage/solar2d-linux-builds/actions/runs/41062620655),
+loaded the native binding and passed its Lua ABI, OpenSSL version, entropy
+readiness and byte-length checks. It then exposed a fixture error: a new
+composer scene has no view before its lifecycle creates one. The fixture now
+enters a real scene through `composer.gotoScene` and checks the create event
+before using that view. This is still short of a complete boot receipt.

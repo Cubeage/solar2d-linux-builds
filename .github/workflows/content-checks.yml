@@ -38,4 +38,4 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: Cubeage/.github/.github/actions/self-hosted-runners@854d150d886e0a4d15846e87e57ca67c7b8c290e
+      - uses: Cubeage/.github/.github/actions/self-hosted-runners@5a8730f897d11266c36adacb16661e43cf9f564a # main
