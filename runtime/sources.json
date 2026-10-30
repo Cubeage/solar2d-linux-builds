@@ -1,0 +1,17 @@
+{
+  "packageVersion": "2026.3731.1",
+  "solar2d": {
+    "repository": "https://github.com/coronalabs/corona.git",
+    "commit": "7dbc7cccdee81b0a900505b419fab6531650194a",
+    "build": "3731",
+    "year": "2026"
+  },
+  "openssl": {
+    "repository": "https://github.com/zhaozg/lua-openssl.git",
+    "commit": "affa98b319121f7575fc1706359c2e4fcd010501",
+    "submodules": {
+      "deps/auxiliar": "32bf4073ebbd949ef76bbfdd0e973d735a70526d",
+      "deps/lua-compat": "1f6b82a08574b66995181889b786fd22a003f7d3"
+    }
+  }
+}
