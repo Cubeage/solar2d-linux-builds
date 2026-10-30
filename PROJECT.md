@@ -1,6 +1,6 @@
 # Cubeage Solar2D Linux
 
-Cubeage Solar2D Linux builds Linux Solar2DBuilder artifacts for Android APK builds on CI. It owns the Solar2D source patch set, Linux build script, GitHub Actions release workflow, and published tarball artifacts consumed by downstream game build pipelines.
+Cubeage Solar2D Linux produces Linux Solar2DBuilder artifacts for Android builds and source-pinned Solar2D simulator packages for Lua application jobs. It owns the source patch set, package scripts, smoke fixtures, release workflows and published tarballs.
 
 Lifecycle: `production`
 Layer: `tooling`
@@ -10,11 +10,12 @@ Layer: `tooling`
 - Produce Linux Solar2DBuilder packages for self-hosted or GitHub Actions Android build pipelines.
 - Track upstream Solar2D releases and apply the repository patch set needed for Linux Android builds.
 - Publish reproducible release artifacts with smoke evidence and release readback.
+- Package the actual Linux simulator, Resources and native OpenSSL binding for on-demand Lua application jobs.
 
 ## Non-Goals
 
 - This repository does not own the upstream Solar2D runtime, game source code, or Android app release behavior.
-- This repository does not own consumer CI workflows beyond the published Solar2DBuilder package contract.
+- This repository does not own consumer CI workflows beyond the published package contracts.
 - This repository does not own central CI runner, enterprise release bot, or platform preview behavior.
 
 ## Boundaries
@@ -27,6 +28,8 @@ The machine-readable source of truth is [.doctrine/project.json](.doctrine/proje
 - Solar2D Linux patch set under `patches/`.
 - Release workflow in `.github/workflows/build.yml`.
 - GitHub Release tarball `solar2dbuilder-linux-<BUILD>.tar.gz`.
+- Source manifest `runtime/sources.json`, runtime build and smoke scripts, and `.github/workflows/runtime.yml`.
+- Separate runtime release `runtime-<version>` with `solar2d-runtime-linux-<version>.tar.gz`.
 
 ## Delivery
 

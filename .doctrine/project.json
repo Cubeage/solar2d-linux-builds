@@ -5,15 +5,16 @@
     "name": "Cubeage Solar2D Linux",
     "lifecycle": "production",
     "layer": "tooling",
-    "summary": "Linux Solar2DBuilder artifact producer for Android APK builds on CI, owning the Solar2D patch set, build script, release workflow, and published tarballs.",
+    "summary": "Linux Solar2DBuilder and source-pinned simulator package producer, owning source patches, build and smoke scripts, release workflows and tarballs.",
     "goals": [
       "Produce Linux Solar2DBuilder packages for Android build pipelines.",
       "Track upstream Solar2D releases and apply the patch set needed for Linux Android builds.",
-      "Publish reproducible release artifacts with smoke evidence and release readback."
+      "Publish reproducible release artifacts with smoke evidence and release readback.",
+      "Package the actual Linux simulator, generated Resources and native OpenSSL binding for on-demand Lua application jobs."
     ],
     "nonGoals": [
       "Do not own the upstream Solar2D runtime, game source code, or Android app release behavior.",
-      "Do not own consumer CI workflows beyond the published Solar2DBuilder package contract.",
+      "Do not own consumer CI workflows beyond the published package contracts.",
       "Do not own central CI runner, enterprise release bot, or platform preview behavior."
     ]
   },
@@ -30,6 +31,10 @@
       {
         "name": "solar2d-linux-release-artifacts",
         "description": "GitHub Release tarballs consumed by downstream Android build pipelines."
+      },
+      {
+        "name": "solar2d-linux-simulator-package",
+        "description": "Source-pinned Linux simulator, generated Resources and native Lua OpenSSL binding; harmless boot checks and published-asset verification."
       }
     ],
     "doesNotOwn": [
@@ -57,12 +62,27 @@
         "type": "workflow",
         "name": "Solar2DBuilder release workflow",
         "location": ".github/workflows/build.yml"
+      },
+      {
+        "type": "package-export",
+        "name": "Linux Solar2D runtime tarball",
+        "location": ".github/workflows/runtime.yml:solar2d-runtime-linux-<version>.tar.gz"
+      },
+      {
+        "type": "manifest",
+        "name": "Runtime source pins",
+        "location": "runtime/sources.json"
       }
     ],
     "allowedDependencies": [
       {
         "repo": "coronalabs/corona",
         "surface": "Solar2D source and release assets",
+        "direction": "external"
+      },
+      {
+        "repo": "zhaozg/lua-openssl",
+        "surface": "Pinned native OpenSSL binding source with pinned recursive submodules",
         "direction": "external"
       }
     ],
@@ -98,14 +118,15 @@
   "delivery": {
     "ciModel": "legacy-ci",
     "requiredContexts": [],
-    "deployPath": "The .github/workflows/build.yml workflow checks upstream Solar2D releases, builds Linux Solar2DBuilder, smoke tests it, and publishes GitHub Release tarballs on schedule or workflow_dispatch. No required PR status context is currently configured in branch protection.",
+    "deployPath": "The .github/workflows/build.yml workflow checks upstream Solar2D releases, builds Linux Solar2DBuilder, smoke tests it, and publishes GitHub Release tarballs on schedule or workflow_dispatch. No required PR status context is currently configured in branch protection. The runtime.yml workflow separately builds pinned simulator packages on pull requests and publishes a distinct runtime tag from a main-branch dispatch, followed by a fresh published-asset boot.",
     "productionProof": "Release changes require upstream Solar2D version evidence, patch application proof, package smoke output, GitHub Release asset readback, and downstream compatibility notes. Manifest-only changes are proven by the doctrine project-control audit.",
     "recoveryClass": "forward-fix-only",
     "packageRelease": {
       "publishesPackages": true,
       "ecosystems": [
         "github-release",
-        "solar2d-builder"
+        "solar2d-builder",
+        "solar2d-runtime"
       ],
       "releaseIntent": "Current state is schedule or workflow_dispatch release intent from .github/workflows/build.yml; dedicated release-intent PR is not yet adopted.",
       "versionPr": "Not currently implemented; future path should use a bot-owned version or release PR before publishing release artifacts.",
@@ -115,7 +136,7 @@
         "build",
         "smoke-test"
       ],
-      "publishProof": "GitHub Release readback for solar2dbuilder-linux-<BUILD>.tar.gz plus smoke output from the workflow."
+      "publishProof": "GitHub Release readback for solar2dbuilder-linux-<BUILD>.tar.gz plus smoke output from the workflow. Runtime packages additionally require the published tarball checksum, source receipt and a fresh-job native OpenSSL/simulator boot with negative cases."
     }
   },
   "adoption": {

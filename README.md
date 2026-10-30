@@ -161,3 +161,31 @@ Requires: `cmake`, `ninja`, `jdk-17`, OpenGL dev libs, `7zip`, `xvfb`.
 The script configures the repository root (`cmake -S . -B platform/linux/build`), applies
 `patches/`, downloads the official DMG for `Corona.aar`/`android-template.zip`, patches the Android
 template, and writes `solar2dbuilder-linux-<BUILD>.tar.gz` in the repository root.
+## Linux simulator runtime
+
+The separate [runtime package](runtime/README.md) runs the actual Solar2D Lua
+simulator under Xvfb, including generated Resources and a source-pinned native
+OpenSSL module. It targets x86_64 Ubuntu 22.04. Its release tags begin with
+`runtime-`; the existing builder package and latest builder release keep their
+current names and behavior.
+
+The source pins are in [runtime/sources.json](runtime/sources.json). The
+[dated source evidence](docs/runtime-evidence.md) records the runtime and native
+module contracts. The
+[runtime workflow](.github/workflows/runtime.yml) builds and tests the package
+on pull requests. Dispatch it with `publish=true` from merged main to publish
+a new packaging version and boot the downloaded release asset in a fresh job.
+Existing runtime releases are never overwritten; increment `packageVersion`
+for a forward fix. Build-only dispatches use `publish=false`.
+
+For a development build, install the workflow's build dependencies and run:
+
+```bash
+bash scripts/build-runtime.sh /tmp/solar2d-build-work /tmp/solar2d-output
+tar -xzf /tmp/solar2d-output/solar2d-runtime-linux-2026.3731.1.tar.gz -C /tmp
+python3 scripts/smoke-runtime.py /tmp/solar2d-runtime-2026.3731.1
+```
+
+The build work directory must be empty. Smoke tests use a harmless local app
+and verify callbacks, Documents readback, native crypto, missing-module failure
+and failed-entropy rejection. They do not launch a game or contact an account.

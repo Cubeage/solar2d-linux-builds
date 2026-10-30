@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 solar2dbuilder-linux-*.tar.gz
+dist/
+smoke-receipts/
+published-smoke/
+runtime-build.log

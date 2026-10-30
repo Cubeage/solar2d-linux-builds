@@ -1,0 +1,18 @@
+diff --git a/platform/linux/src/Rtt_LinuxContext.cpp b/platform/linux/src/Rtt_LinuxContext.cpp
+--- a/platform/linux/src/Rtt_LinuxContext.cpp
++++ b/platform/linux/src/Rtt_LinuxContext.cpp
+@@ -367,6 +367,14 @@ namespace Rtt
+ 		luapath.append("/Resources/?.lua;");
+ 
+ 		setenv("LUA_PATH", luapath.c_str(), true);
++
++		// The VM has already opened package; changing its environment alone
++		// cannot make installed runtime Lua resources visible to require().
++		lua_State* resourceState = fRuntime->VMContext().L();
++		lua_getglobal(resourceState, "package");
++		lua_pushstring(resourceState, luapath.c_str());
++		lua_setfield(resourceState, -2, "path");
++		lua_pop(resourceState, 1);
+ 
+ 		if (fRuntimeDelegate->fOrientation == DeviceOrientation::kSidewaysRight || fRuntimeDelegate->fOrientation == DeviceOrientation::kSidewaysLeft)
+ 		{

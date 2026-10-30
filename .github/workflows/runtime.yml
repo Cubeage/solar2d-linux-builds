@@ -1,0 +1,161 @@
+name: Linux simulator runtime
+
+on:
+  pull_request:
+    paths: ['runtime/**', 'scripts/*runtime*', 'tests/runtime-fixture/**', 'patches/**', '.github/workflows/runtime.yml']
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the verified runtime from main
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build pinned simulator
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Read package version
+        id: version
+        run: echo "version=$(jq -r .packageVersion runtime/sources.json)" >> "$GITHUB_OUTPUT"
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential cmake ninja-build git pkg-config jq ripgrep \
+            libcurl4-openssl-dev libfreetype6-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libopenal-dev libpng-dev libjpeg-dev libssl-dev libsdl2-dev \
+            libvorbis-dev libogg-dev uuid-dev zlib1g-dev liblua5.1-0-dev
+      - name: Existing package regression checks
+        run: python3 -m unittest discover -s tests -t . -v
+      - name: Build source-pinned runtime
+        run: bash scripts/build-runtime.sh "$RUNNER_TEMP/solar2d-runtime-build" dist 2>&1 | tee runtime-build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-build-proof-${{ github.run_id }}
+          path: |
+            runtime-build.log
+            dist/*submodules.txt
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-package-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  smoke:
+    name: Boot packaged simulator
+    needs: build
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@v4
+        with:
+          name: runtime-package-${{ github.run_id }}
+          path: dist
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libcurl4 libfreetype6 libgl1 libglu1-mesa libgl1-mesa-dri \
+            libglx-mesa0 libopenal1 libpng16-16 libjpeg8 libssl3 libsdl2-2.0-0 \
+            zlib1g libstdc++6 xvfb xauth fonts-dejavu-core gcc
+      - name: Verify checksum and boot extracted package
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          cd dist
+          sha256sum -c "solar2d-runtime-linux-${VERSION}.tar.gz.sha256"
+          tar -xzf "solar2d-runtime-linux-${VERSION}.tar.gz" -C "$RUNNER_TEMP"
+          cd ..
+          python3 scripts/smoke-runtime.py "$RUNNER_TEMP/solar2d-runtime-${VERSION}" --output smoke-receipts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-smoke-${{ github.run_id }}
+          path: smoke-receipts/
+          retention-days: 7
+
+  publish:
+    name: Publish immutable runtime release
+    needs: [build, smoke]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@v4
+        with:
+          name: runtime-package-${{ github.run_id }}
+          path: dist
+      - name: Create runtime release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          TAG="runtime-${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release already exists; increment packageVersion for a forward fix" >&2
+            exit 1
+          fi
+          cp runtime/README.md release-notes.md
+          printf '\nPackage source: %s. Build and smoke: %s/%s/actions/runs/%s\n' \
+            "$GITHUB_SHA" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" >> release-notes.md
+          gh release create "$TAG" "dist/solar2d-runtime-linux-${VERSION}.tar.gz" \
+            "dist/solar2d-runtime-linux-${VERSION}.tar.gz.sha256" dist/sources.json dist/build-receipt.txt \
+            --target "$GITHUB_SHA" --title "Solar2D Linux runtime ${VERSION}" \
+            --notes-file release-notes.md --latest=false
+          gh release view "$TAG" --json tagName,targetCommitish,assets,url
+
+  readback:
+    name: Boot published runtime
+    needs: [build, publish]
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install runtime dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libcurl4 libfreetype6 libgl1 libglu1-mesa libgl1-mesa-dri \
+            libglx-mesa0 libopenal1 libpng16-16 libjpeg8 libssl3 libsdl2-2.0-0 \
+            zlib1g libstdc++6 xvfb xauth fonts-dejavu-core gcc
+      - name: Download and boot published asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          gh release download "runtime-${VERSION}" --dir published
+          cd published
+          sha256sum -c "solar2d-runtime-linux-${VERSION}.tar.gz.sha256"
+          cmp sources.json ../runtime/sources.json
+          grep -qx "packageSource=${GITHUB_SHA}" build-receipt.txt
+          tar -xzf "solar2d-runtime-linux-${VERSION}.tar.gz" -C "$RUNNER_TEMP"
+          cd ..
+          python3 scripts/smoke-runtime.py "$RUNNER_TEMP/solar2d-runtime-${VERSION}" --output published-smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-published-smoke-${{ github.run_id }}
+          path: published-smoke/
+          retention-days: 7
