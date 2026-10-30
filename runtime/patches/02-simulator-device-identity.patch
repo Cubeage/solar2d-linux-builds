@@ -1,0 +1,39 @@
+--- a/platform/linux/src/Rtt_LinuxDevice.cpp
++++ b/platform/linux/src/Rtt_LinuxDevice.cpp
+@@ -10,6 +10,8 @@
+ #include "Core/Rtt_Build.h"
+ #include "Rtt_LinuxDevice.h"
+ #include <sys/utsname.h>
++#include <cstdlib>
++#include <cstring>
+ 
+ namespace Rtt
+ {
+@@ -133,7 +135,26 @@
+ 		switch (t)
+ 		{
+ 		case MPlatformDevice::kDeviceIdentifier:
+-			break;
++			{
++#ifdef Rtt_SIMULATOR
++				// Explicit simulator identity; never generate a replacement at boot.
++				const char* configured = std::getenv("SOLAR2D_DEVICE_ID");
++				if (configured)
++				{
++					const size_t length = std::strlen(configured);
++					bool valid = length > 0 && length <= 128;
++					for (size_t i = 0; valid && i < length; i++)
++					{
++						const unsigned char ch = configured[i];
++						valid = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
++							|| (ch >= '0' && ch <= '9') || ch == '-' || ch == '_'
++							|| ch == '.' || ch == ':';
++					}
++					if (valid) { result = configured; }
++				}
++#endif
++				break;
++			}
+ 		case MPlatformDevice::kHardwareIdentifier:
+ 			break;
+ 		case MPlatformDevice::kOSIdentifier:
