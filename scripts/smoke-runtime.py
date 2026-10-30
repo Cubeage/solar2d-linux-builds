@@ -12,11 +12,17 @@ import subprocess
 import tempfile
 
 
-def boot(package: Path, destination: Path, name: str, preload: Path | None = None) -> tuple[int, dict]:
+def boot(package: Path, destination: Path, name: str, preload: Path | None = None,
+         device_id: str | None = None, expected_device_id: str = "") -> tuple[int, dict]:
     app = destination / name
     shutil.copytree(Path(__file__).resolve().parents[1] / "tests/runtime-fixture", app)
     receipt = destination / f"{name}.json"
     env = dict(os.environ, SOLAR2D_SMOKE_RECEIPT=str(receipt))
+    # Never inherit an unrelated runner's identity into these local fixtures.
+    env.pop("SOLAR2D_DEVICE_ID", None)
+    env["SOLAR2D_EXPECTED_DEVICE_ID"] = expected_device_id
+    if device_id is not None:
+        env["SOLAR2D_DEVICE_ID"] = device_id
     if preload:
         env["LD_PRELOAD"] = str(preload)
     with (destination / f"{name}.log").open("w") as log:
@@ -47,6 +53,22 @@ def main() -> None:
     print(f"Smoke receipts: {destination}", flush=True)
     code, result = boot(package, destination, "positive")
     assert code == 0 and result["ok"] is True, "packaged runtime boot failed"
+
+    # Fresh native processes must expose the supplied retained identity through
+    # the real system.getInfo API. No Lua replacement or generated fallback.
+    retained = "simulator-fixture-0123456789abcdef"
+    for name, supplied, expected in [
+        ("retained-device", retained, retained),
+        ("retained-device-restart", retained, retained),
+        ("distinct-device", "simulator-fixture-other", "simulator-fixture-other"),
+        ("maximum-device", "x" * 128, "x" * 128),
+        ("empty-device", "", ""),
+        ("invalid-device", "simulator fixture", ""),
+        ("oversized-device", "x" * 129, ""),
+    ]:
+        code, result = boot(package, destination, name, device_id=supplied, expected_device_id=expected)
+        assert code == 0 and result["ok"] is True, f"{name}: native device identity mismatch"
+        assert result["detail"]["deviceIdentity"] is True, result
 
     module = package / "Resources/plugin/openssl.so"
     disabled = module.with_suffix(".disabled")

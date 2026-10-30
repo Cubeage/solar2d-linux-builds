@@ -21,6 +21,8 @@ end)
 
 guarded(function()
     assert(_VERSION == "Lua 5.1", "wrong Lua ABI")
+    local deviceId = system.getInfo("deviceID") or ""
+    assert(deviceId == assert(os.getenv("SOLAR2D_EXPECTED_DEVICE_ID")), "native device identity mismatch")
     local composer = require("composer")
     local widget = require("widget")
     local json = require("json")
@@ -56,7 +58,8 @@ guarded(function()
             lua = _VERSION, solar2d = system.getInfo("build"), openssl = cryptoVersion,
             binding = bindingVersion, frames = frames, timer = timed,
             transition = transitioned, documents = true, nativeRandom = true,
-            composer = scene.smokeCreated, widget = true
+            composer = scene.smokeCreated, widget = true,
+            deviceIdentity = true, deviceIdPresent = #deviceId > 0
         })
     end))
 end)()
