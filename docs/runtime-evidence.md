@@ -41,3 +41,13 @@ comparison and the same boot checks against the actual release asset.
 The builder package is a separate compatibility surface. Its existing workflow,
 scripts, patches and asset names remain supported, and the runtime release is
 excluded from GitHub's latest-release selection.
+
+The first native CI attempt, [41061549950](https://github.com/Cubeage/solar2d-linux-builds/actions/runs/41061549950),
+compiled both simulator and binding successfully on 2026-10-30. Its extracted
+package reached actual Lua execution but failed to load `plugin.openssl`.
+The receipt's module search paths omitted installed Resources. The Linux
+context appended Resources to the environment after the VM had already opened
+`package`, leaving the VM's `package.path` unchanged. The runtime patch updates
+that live table as well. It can be removed when the pinned upstream sets the
+installed Resources path in the live VM and the same extracted-package check
+passes. Builder builds do not apply runtime-specific patches.

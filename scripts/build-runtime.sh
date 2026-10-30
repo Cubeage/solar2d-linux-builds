@@ -42,9 +42,9 @@ done < <(jq -r '.openssl.submodules | to_entries[] | [.key,.value] | @tsv' "$MAN
 mkdir -p "$PKG/Resources/plugin" "$PKG/licenses"
 cp "$MANIFEST" "$PKG/sources.json"
 : > "$PKG/patches.sha256"
-for patch_file in "${REPO_ROOT}/patches/"*.patch; do
+for patch_file in "${REPO_ROOT}/patches/"*.patch "${REPO_ROOT}/runtime/patches/"*.patch; do
   git -C "${RUNTIME_WORK}/solar2d" apply "$patch_file"
-  (cd "$REPO_ROOT" && sha256sum "patches/$(basename "$patch_file")") >> "$PKG/patches.sha256"
+  (cd "$REPO_ROOT" && sha256sum "${patch_file#"$REPO_ROOT/"}") >> "$PKG/patches.sha256"
 done
 df -h "$RUNTIME_WORK"
 BUILD_NUMBER="$BUILD" YEAR="$YEAR" cmake -S "${RUNTIME_WORK}/solar2d" -B "${RUNTIME_WORK}/build" \
