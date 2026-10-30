@@ -170,6 +170,8 @@ OpenSSL module. It targets x86_64 Ubuntu 22.04. Its release tags begin with
 current names and behavior.
 
 The source pins are in [runtime/sources.json](runtime/sources.json). The
+[dated source evidence](docs/runtime-evidence.md) records the runtime and native
+module contracts. The
 [runtime workflow](.github/workflows/runtime.yml) builds and tests the package
 on pull requests. Dispatch it with `publish=true` from merged main to publish
 a new packaging version and boot the downloaded release asset in a fresh job.
